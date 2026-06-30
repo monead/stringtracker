@@ -1,0 +1,847 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+<title>StringTracker</title>
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#0F2F22" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="StringTracker" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<link rel="icon" href="icon-192.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --court:#0F2F22;
+    --court-2:#163E2C;
+    --clay:#C1440E;
+    --chalk:#F1EDE4;
+    --ink:#1B231D;
+    --ball:#D9E84B;
+    --line:rgba(241,237,228,0.14);
+    --muted:rgba(241,237,228,0.55);
+    --danger:#E0573D;
+    --radius:16px;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--court);
+    color:var(--chalk);
+    font-family:'Inter', -apple-system, sans-serif;
+    overscroll-behavior-y: none;
+  }
+  h1,h2,h3,.display{
+    font-family:'Oswald', sans-serif;
+    text-transform:uppercase;
+    letter-spacing:0.02em;
+    margin:0;
+  }
+  #app{
+    max-width:560px;
+    margin:0 auto;
+    min-height:100%;
+    display:flex;
+    flex-direction:column;
+    padding-top: var(--safe-top);
+  }
+  header.top{
+    padding:18px 18px 14px;
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    border-bottom:1px solid var(--line);
+  }
+  header.top .brand{
+    font-size:22px;
+    font-weight:700;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  header.top .brand .dot{
+    width:10px;height:10px;border-radius:50%;
+    background:var(--ball);
+    box-shadow:0 0 0 3px rgba(217,232,75,0.18);
+  }
+  header.top .sub{
+    font-size:12px;
+    color:var(--muted);
+    letter-spacing:0.04em;
+  }
+  main{
+    flex:1;
+    padding:16px 16px calc(96px + var(--safe-bottom));
+  }
+  .empty{
+    text-align:center;
+    padding:48px 20px;
+    color:var(--muted);
+  }
+  .empty .glyph{
+    font-size:40px;
+    margin-bottom:10px;
+    opacity:0.6;
+  }
+  .empty button{margin-top:14px;}
+
+  .card{
+    background:var(--court-2);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:16px;
+    margin-bottom:12px;
+  }
+  .card-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:10px;
+  }
+  .card h3{font-size:17px; font-weight:600; color:var(--chalk);}
+  .card .meta{font-size:12.5px; color:var(--muted); margin-top:3px;}
+  .card .tags{display:flex; gap:6px; flex-wrap:wrap; margin-top:10px;}
+  .tag{
+    font-size:11px;
+    padding:3px 9px;
+    border-radius:99px;
+    background:rgba(217,232,75,0.12);
+    color:var(--ball);
+    border:1px solid rgba(217,232,75,0.25);
+    font-weight:600;
+    letter-spacing:0.03em;
+  }
+  .tag.clay{background:rgba(193,68,14,0.14); color:#FF8C5C; border-color:rgba(193,68,14,0.3);}
+  .iconbtn{
+    background:none;border:none;color:var(--muted);
+    font-size:18px; padding:4px 6px; cursor:pointer;
+    line-height:1;
+  }
+  .iconbtn:active{color:var(--chalk);}
+
+  /* Stringing card specific */
+  .tension-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    margin-top:12px;
+  }
+  .tension-box{
+    background:rgba(0,0,0,0.18);
+    border-radius:10px;
+    padding:10px 12px;
+  }
+  .tension-box .label{font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em;}
+  .tension-box .val{font-size:20px; font-weight:700; font-family:'Oswald',sans-serif; margin-top:2px;}
+  .tension-box .val span{font-size:12px; color:var(--muted); font-weight:500;}
+
+  .stringviz{
+    width:100%;
+    height:44px;
+    margin-top:10px;
+    border-radius:8px;
+    overflow:hidden;
+    background:rgba(0,0,0,0.2);
+  }
+
+  .cost-row{
+    display:flex; justify-content:space-between; align-items:center;
+    margin-top:10px; padding-top:10px; border-top:1px solid var(--line);
+    font-size:13px; color:var(--muted);
+  }
+  .cost-row .price{color:var(--ball); font-weight:700; font-size:15px; font-family:'Oswald',sans-serif;}
+
+  /* bottom nav */
+  nav.tabs{
+    position:fixed;
+    bottom:0; left:0; right:0;
+    background:rgba(15,47,34,0.92);
+    backdrop-filter:blur(14px);
+    -webkit-backdrop-filter:blur(14px);
+    border-top:1px solid var(--line);
+    display:flex;
+    padding-bottom: var(--safe-bottom);
+    z-index:50;
+  }
+  nav.tabs .wrap{
+    max-width:560px; margin:0 auto; width:100%;
+    display:flex;
+  }
+  nav.tabs button{
+    flex:1;
+    background:none; border:none;
+    color:var(--muted);
+    padding:10px 4px 8px;
+    display:flex; flex-direction:column; align-items:center; gap:4px;
+    font-family:'Inter',sans-serif;
+    font-size:10.5px;
+    font-weight:600;
+    letter-spacing:0.02em;
+    text-transform:uppercase;
+    cursor:pointer;
+  }
+  nav.tabs button .ic{font-size:19px; line-height:1;}
+  nav.tabs button.active{color:var(--ball);}
+
+  .fab{
+    position:fixed;
+    right:18px;
+    bottom:calc(80px + var(--safe-bottom));
+    width:54px; height:54px;
+    border-radius:50%;
+    background:var(--ball);
+    color:var(--court);
+    border:none;
+    font-size:26px;
+    font-weight:700;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 6px 18px rgba(0,0,0,0.35);
+    z-index:40;
+    cursor:pointer;
+  }
+  .fab:active{transform:scale(0.95);}
+
+  /* modal / sheet */
+  .sheet-backdrop{
+    position:fixed; inset:0;
+    background:rgba(0,0,0,0.55);
+    z-index:100;
+    display:none;
+    align-items:flex-end;
+  }
+  .sheet-backdrop.open{display:flex;}
+  .sheet{
+    background:var(--court-2);
+    width:100%;
+    max-width:560px;
+    margin:0 auto;
+    border-radius:20px 20px 0 0;
+    max-height:88vh;
+    overflow-y:auto;
+    padding:18px 18px calc(28px + var(--safe-bottom));
+    border-top:1px solid var(--line);
+  }
+  .sheet-handle{
+    width:36px; height:4px; background:rgba(241,237,228,0.25);
+    border-radius:99px; margin:0 auto 14px;
+  }
+  .sheet h2{font-size:19px; margin-bottom:16px;}
+  .field{margin-bottom:13px;}
+  .field label{
+    display:block; font-size:11.5px; color:var(--muted);
+    text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px; font-weight:600;
+  }
+  .field-row{display:flex; gap:10px;}
+  .field-row .field{flex:1;}
+  input, select, textarea{
+    width:100%;
+    background:rgba(0,0,0,0.22);
+    border:1px solid var(--line);
+    color:var(--chalk);
+    border-radius:10px;
+    padding:11px 12px;
+    font-size:15px;
+    font-family:'Inter',sans-serif;
+    appearance:none;
+    -webkit-appearance:none;
+  }
+  textarea{resize:vertical; min-height:60px;}
+  input:focus, select:focus, textarea:focus{outline:none; border-color:var(--ball);}
+  input::placeholder, textarea::placeholder{color:rgba(241,237,228,0.35);}
+  select{
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M0 0l5 6 5-6z' fill='%23F1EDE4' opacity='0.5'/></svg>");
+    background-repeat:no-repeat;
+    background-position:right 12px center;
+    padding-right:30px;
+  }
+  .btn-row{display:flex; gap:10px; margin-top:18px;}
+  button.primary{
+    flex:1;
+    background:var(--ball);
+    color:var(--court);
+    border:none;
+    border-radius:12px;
+    padding:13px;
+    font-weight:700;
+    font-size:15px;
+    cursor:pointer;
+    font-family:'Inter',sans-serif;
+  }
+  button.secondary{
+    background:none;
+    border:1px solid var(--line);
+    color:var(--chalk);
+    border-radius:12px;
+    padding:13px 16px;
+    font-weight:600;
+    font-size:15px;
+    cursor:pointer;
+  }
+  button.danger-link{
+    background:none; border:none; color:var(--danger);
+    font-size:13px; font-weight:600; cursor:pointer;
+    padding:8px 0;
+  }
+  .hint{font-size:11.5px; color:var(--muted); margin-top:4px;}
+  .toggle-row{display:flex; gap:8px; margin-bottom:14px;}
+  .toggle-row button{
+    flex:1;
+    background:rgba(0,0,0,0.2);
+    border:1px solid var(--line);
+    color:var(--muted);
+    padding:9px;
+    border-radius:10px;
+    font-size:12.5px;
+    font-weight:700;
+    cursor:pointer;
+    text-transform:uppercase;
+    letter-spacing:0.03em;
+  }
+  .toggle-row button.active{
+    background:rgba(217,232,75,0.14);
+    border-color:rgba(217,232,75,0.4);
+    color:var(--ball);
+  }
+  .stat-strip{
+    display:flex; gap:10px; margin-bottom:16px;
+  }
+  .stat-strip .stat{
+    flex:1;
+    background:var(--court-2);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:12px 14px;
+  }
+  .stat-strip .stat .n{font-family:'Oswald',sans-serif; font-size:22px; font-weight:700; color:var(--ball);}
+  .stat-strip .stat .l{font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em; margin-top:2px;}
+  ::-webkit-scrollbar{display:none;}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <div class="brand"><span class="dot"></span> StringTracker</div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <div class="sub" id="headerSub">racchette · corde · incordature</div>
+      <button class="iconbtn" id="settingsBtn" title="Backup">⚙︎</button>
+    </div>
+  </header>
+  <main id="main"></main>
+</div>
+
+<button class="fab" id="fab">+</button>
+
+<nav class="tabs">
+  <div class="wrap">
+    <button data-tab="rackets" class="active"><span class="ic">🎾</span>Racchette</button>
+    <button data-tab="strings"><span class="ic">🧵</span>Corde</button>
+    <button data-tab="jobs"><span class="ic">📋</span>Incordature</button>
+  </div>
+</nav>
+
+<div class="sheet-backdrop" id="sheetBackdrop">
+  <div class="sheet" id="sheet"></div>
+</div>
+
+<script>
+/* ---------- storage ---------- */
+const DB_KEY = "stringtracker_db_v1";
+function loadDB(){
+  try{
+    const raw = localStorage.getItem(DB_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  return { rackets: [], strings: [], jobs: [] };
+}
+function saveDB(){ localStorage.setItem(DB_KEY, JSON.stringify(db)); }
+let db = loadDB();
+
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function fmtDate(d){
+  if(!d) return "—";
+  const dt = new Date(d+"T00:00:00");
+  return dt.toLocaleDateString("it-IT", {day:"2-digit", month:"short", year:"numeric"});
+}
+function euro(n){
+  if(n===undefined || n===null || n==="") return "—";
+  return "€ " + Number(n).toFixed(2).replace(".", ",");
+}
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+
+/* ---------- state ---------- */
+let activeTab = "rackets";
+const main = document.getElementById("main");
+const headerSub = document.getElementById("headerSub");
+const sheetBackdrop = document.getElementById("sheetBackdrop");
+const sheetEl = document.getElementById("sheet");
+
+document.querySelectorAll("nav.tabs button").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    document.querySelectorAll("nav.tabs button").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    activeTab = btn.dataset.tab;
+    render();
+  });
+});
+
+document.getElementById("settingsBtn").addEventListener("click", openBackupSheet);
+
+function openBackupSheet(){
+  const stamp = new Date().toLocaleString("it-IT");
+  openSheet(`
+    <div class="sheet-handle"></div>
+    <h2>Backup dati</h2>
+    <p class="hint" style="margin-bottom:16px;">
+      ${db.rackets.length} racchette · ${db.strings.length} corde · ${db.jobs.length} incordature.<br>
+      I dati sono salvati solo su questo telefono. Esporta un file per fare backup o trasferirli su un altro dispositivo.
+    </p>
+    <button class="primary" style="width:100%; margin-bottom:10px;" onclick="exportData()">⬇️ Esporta file (.json)</button>
+    <button class="secondary" style="width:100%;" onclick="document.getElementById('importFile').click()">⬆️ Importa file</button>
+    <input type="file" id="importFile" accept="application/json" style="display:none" onchange="importData(event)">
+    <div class="hint" style="margin-top:14px;">Importando da un altro dispositivo puoi scegliere se unire ai dati esistenti o sostituirli del tutto.</div>
+  `);
+}
+
+function exportData(){
+  const payload = {
+    app: "StringTracker",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    data: db
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const stamp = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `stringtracker-backup-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+
+function importData(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    let parsed;
+    try{
+      parsed = JSON.parse(e.target.result);
+    }catch(err){
+      alert("File non valido: non è un JSON leggibile.");
+      return;
+    }
+    const incoming = parsed.data ? parsed.data : parsed;
+    if(!incoming || !Array.isArray(incoming.rackets) || !Array.isArray(incoming.strings) || !Array.isArray(incoming.jobs)){
+      alert("File non valido: struttura dati non riconosciuta.");
+      return;
+    }
+    const replace = confirm(
+      `File trovato: ${incoming.rackets.length} racchette, ${incoming.strings.length} corde, ${incoming.jobs.length} incordature.\n\nOK = SOSTITUISCI tutti i dati attuali con quelli del file.\nAnnulla = UNISCI ai dati attuali (evitando duplicati per id).`
+    );
+    if(replace){
+      db = { rackets: incoming.rackets, strings: incoming.strings, jobs: incoming.jobs };
+    } else {
+      const mergeById = (existing, incoming)=>{
+        const ids = new Set(existing.map(x=>x.id));
+        const merged = [...existing];
+        incoming.forEach(item=>{ if(!ids.has(item.id)) merged.push(item); });
+        return merged;
+      };
+      db = {
+        rackets: mergeById(db.rackets, incoming.rackets),
+        strings: mergeById(db.strings, incoming.strings),
+        jobs: mergeById(db.jobs, incoming.jobs),
+      };
+    }
+    saveDB();
+    closeSheet();
+    render();
+    alert("Importazione completata.");
+  };
+  reader.readAsText(file);
+}
+
+document.getElementById("fab").addEventListener("click", ()=>{
+  if(activeTab==="rackets") openRacketForm();
+  if(activeTab==="strings") openStringForm();
+  if(activeTab==="jobs") openJobForm();
+});
+
+function closeSheet(){
+  sheetBackdrop.classList.remove("open");
+  sheetEl.innerHTML = "";
+}
+sheetBackdrop.addEventListener("click", (e)=>{
+  if(e.target === sheetBackdrop) closeSheet();
+});
+function openSheet(html){
+  sheetEl.innerHTML = html;
+  sheetBackdrop.classList.add("open");
+}
+
+/* ---------- render router ---------- */
+function render(){
+  if(activeTab==="rackets") renderRackets();
+  if(activeTab==="strings") renderStrings();
+  if(activeTab==="jobs") renderJobs();
+}
+
+/* ============ RACKETS ============ */
+function renderRackets(){
+  headerSub.textContent = db.rackets.length + " racchette";
+  if(db.rackets.length===0){
+    main.innerHTML = `<div class="empty">
+      <div class="glyph">🎾</div>
+      <h3>Nessuna racchetta</h3>
+      <p>Aggiungi la tua prima racchetta per iniziare a tracciare le incordature.</p>
+      <button class="primary" style="max-width:220px;margin:0 auto;" onclick="openRacketForm()">Aggiungi racchetta</button>
+    </div>`;
+    return;
+  }
+  main.innerHTML = db.rackets.map(r=>{
+    const jobCount = db.jobs.filter(j=>j.racketId===r.id).length;
+    const lastJob = db.jobs.filter(j=>j.racketId===r.id).sort((a,b)=>b.date.localeCompare(a.date))[0];
+    return `
+    <div class="card">
+      <div class="card-row">
+        <div>
+          <h3>${esc(r.name)}</h3>
+          <div class="meta">${esc(r.brand||"")} ${esc(r.model||"")}</div>
+        </div>
+        <button class="iconbtn" onclick="openRacketForm('${r.id}')">✎</button>
+      </div>
+      <div class="tags">
+        ${r.weight? `<span class="tag">${esc(r.weight)} g</span>`:""}
+        ${r.balance? `<span class="tag">bil. ${esc(r.balance)}</span>`:""}
+        ${r.headSize? `<span class="tag">${esc(r.headSize)} in²</span>`:""}
+        ${r.pattern? `<span class="tag">${esc(r.pattern)}</span>`:""}
+        ${r.grip? `<span class="tag">grip ${esc(r.grip)}</span>`:""}
+      </div>
+      <div class="cost-row">
+        <span>${jobCount} incordatur${jobCount===1?"a":"e"} ${lastJob? "· ultima " + fmtDate(lastJob.date): ""}</span>
+        <button class="iconbtn" style="color:var(--ball)" onclick="openJobForm(null,'${r.id}')">+ incorda</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function openRacketForm(id){
+  const r = id ? db.rackets.find(x=>x.id===id) : null;
+  openSheet(`
+    <div class="sheet-handle"></div>
+    <h2>${r? "Modifica racchetta":"Nuova racchetta"}</h2>
+    <div class="field"><label>Nome / soprannome</label><input id="f_name" placeholder="es. Pure Aero #1" value="${r? esc(r.name):""}"></div>
+    <div class="field-row">
+      <div class="field"><label>Marca</label><input id="f_brand" placeholder="Babolat" value="${r? esc(r.brand||""):""}"></div>
+      <div class="field"><label>Modello</label><input id="f_model" placeholder="Pure Aero 2023" value="${r? esc(r.model||""):""}"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Peso (g)</label><input id="f_weight" type="number" placeholder="300" value="${r? esc(r.weight||""):""}"></div>
+      <div class="field"><label>Bilanciamento</label><input id="f_balance" placeholder="320mm / 4pts HL" value="${r? esc(r.balance||""):""}"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Piatto (in²)</label><input id="f_head" type="number" placeholder="100" value="${r? esc(r.headSize||""):""}"></div>
+      <div class="field"><label>Pattern corde</label><input id="f_pattern" placeholder="16x19" value="${r? esc(r.pattern||""):""}"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Misura grip</label><input id="f_grip" placeholder="L2 / 4 3/8" value="${r? esc(r.grip||""):""}"></div>
+      <div class="field"><label>RA (rigidità)</label><input id="f_ra" placeholder="65" value="${r? esc(r.ra||""):""}"></div>
+    </div>
+    <div class="field"><label>Note</label><textarea id="f_notes" placeholder="es. matchino, overgrip Tourna...">${r? esc(r.notes||""):""}</textarea></div>
+    <div class="btn-row">
+      ${r? `<button class="secondary" onclick="deleteRacket('${r.id}')">Elimina</button>`:""}
+      <button class="primary" onclick="saveRacket('${r? r.id:""}')">Salva</button>
+    </div>
+  `);
+}
+function saveRacket(id){
+  const data = {
+    name: val("f_name") || "Racchetta",
+    brand: val("f_brand"),
+    model: val("f_model"),
+    weight: val("f_weight"),
+    balance: val("f_balance"),
+    headSize: val("f_head"),
+    pattern: val("f_pattern"),
+    grip: val("f_grip"),
+    ra: val("f_ra"),
+    notes: val("f_notes"),
+  };
+  if(id){
+    const r = db.rackets.find(x=>x.id===id);
+    Object.assign(r, data);
+  } else {
+    data.id = uid();
+    db.rackets.push(data);
+  }
+  saveDB(); closeSheet(); render();
+}
+function deleteRacket(id){
+  if(!confirm("Eliminare questa racchetta e lo storico incordature collegato?")) return;
+  db.rackets = db.rackets.filter(x=>x.id!==id);
+  db.jobs = db.jobs.filter(x=>x.racketId!==id);
+  saveDB(); closeSheet(); render();
+}
+
+/* ============ STRINGS DATABASE ============ */
+function renderStrings(){
+  headerSub.textContent = db.strings.length + " corde in archivio";
+  if(db.strings.length===0){
+    main.innerHTML = `<div class="empty">
+      <div class="glyph">🧵</div>
+      <h3>Nessuna corda</h3>
+      <p>Crea il tuo archivio corde: marca, modello, calibro e prezzo.</p>
+      <button class="primary" style="max-width:220px;margin:0 auto;" onclick="openStringForm()">Aggiungi corda</button>
+    </div>`;
+    return;
+  }
+  main.innerHTML = db.strings.map(s=>{
+    const uses = db.jobs.filter(j=>j.mainStringId===s.id || j.crossStringId===s.id).length;
+    return `
+    <div class="card">
+      <div class="card-row">
+        <div>
+          <h3>${esc(s.brand)} ${esc(s.model)}</h3>
+          <div class="meta">${esc(s.gauge||"")} ${s.gauge? "· ":""}${esc(typeLabel(s.type))}</div>
+        </div>
+        <button class="iconbtn" onclick="openStringForm('${s.id}')">✎</button>
+      </div>
+      <div class="tags">
+        ${s.color? `<span class="tag">${esc(s.color)}</span>`:""}
+        ${s.price? `<span class="tag clay">${euro(s.price)} / set</span>`:""}
+      </div>
+      <div class="cost-row"><span>${uses} incordatur${uses===1?"a":"e"} con questa corda</span></div>
+    </div>`;
+  }).join("");
+}
+function typeLabel(t){
+  return {mono:"Monofilamento", multi:"Multifilamento", gut:"Budello naturale", hybrid_part:"Componente ibrido", synth:"Sintetica"}[t] || (t||"—");
+}
+function openStringForm(id){
+  const s = id ? db.strings.find(x=>x.id===id) : null;
+  openSheet(`
+    <div class="sheet-handle"></div>
+    <h2>${s? "Modifica corda":"Nuova corda"}</h2>
+    <div class="field-row">
+      <div class="field"><label>Marca</label><input id="f_sbrand" placeholder="Luxilon" value="${s? esc(s.brand||""):""}"></div>
+      <div class="field"><label>Modello</label><input id="f_smodel" placeholder="ALU Power" value="${s? esc(s.model||""):""}"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Calibro</label><input id="f_sgauge" placeholder="1.25mm / 16L" value="${s? esc(s.gauge||""):""}"></div>
+      <div class="field">
+        <label>Tipo</label>
+        <select id="f_stype">
+          <option value="mono" ${s&&s.type==="mono"?"selected":""}>Monofilamento</option>
+          <option value="multi" ${s&&s.type==="multi"?"selected":""}>Multifilamento</option>
+          <option value="gut" ${s&&s.type==="gut"?"selected":""}>Budello naturale</option>
+          <option value="synth" ${s&&s.type==="synth"?"selected":""}>Sintetica</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Colore</label><input id="f_scolor" placeholder="es. Nero" value="${s? esc(s.color||""):""}"></div>
+      <div class="field"><label>Prezzo a set/rocchetto (€)</label><input id="f_sprice" type="number" step="0.01" placeholder="18.00" value="${s? esc(s.price||""):""}"></div>
+    </div>
+    <div class="field"><label>Note</label><textarea id="f_snotes" placeholder="sensazioni, durata, mantenimento tensione...">${s? esc(s.notes||""):""}</textarea></div>
+    <div class="btn-row">
+      ${s? `<button class="secondary" onclick="deleteString('${s.id}')">Elimina</button>`:""}
+      <button class="primary" onclick="saveString('${s? s.id:""}')">Salva</button>
+    </div>
+  `);
+}
+function saveString(id){
+  const data = {
+    brand: val("f_sbrand") || "Corda",
+    model: val("f_smodel"),
+    gauge: val("f_sgauge"),
+    type: val("f_stype"),
+    color: val("f_scolor"),
+    price: val("f_sprice"),
+    notes: val("f_snotes"),
+  };
+  if(id){
+    Object.assign(db.strings.find(x=>x.id===id), data);
+  } else {
+    data.id = uid();
+    db.strings.push(data);
+  }
+  saveDB(); closeSheet(); render();
+}
+function deleteString(id){
+  if(!confirm("Eliminare questa corda dall'archivio?")) return;
+  db.strings = db.strings.filter(x=>x.id!==id);
+  saveDB(); closeSheet(); render();
+}
+
+/* ============ JOBS (incordature) ============ */
+function renderJobs(){
+  const sorted = [...db.jobs].sort((a,b)=>b.date.localeCompare(a.date));
+  const totalSpent = db.jobs.reduce((sum,j)=> sum + (Number(j.cost)||0), 0);
+  headerSub.textContent = db.jobs.length + " incordature registrate";
+
+  let statStrip = `<div class="stat-strip">
+    <div class="stat"><div class="n">${db.jobs.length}</div><div class="l">Incordature</div></div>
+    <div class="stat"><div class="n">${euro(totalSpent).replace("€ ","")}</div><div class="l">Spesa tot. €</div></div>
+  </div>`;
+
+  if(db.rackets.length===0 || db.strings.length===0){
+    main.innerHTML = statStrip + `<div class="empty">
+      <div class="glyph">📋</div>
+      <h3>Servono prima racchetta e corda</h3>
+      <p>Aggiungi almeno una racchetta in "Racchette" e una corda in "Corde" per registrare un'incordatura.</p>
+    </div>`;
+    return;
+  }
+  if(sorted.length===0){
+    main.innerHTML = statStrip + `<div class="empty">
+      <div class="glyph">📋</div>
+      <h3>Nessuna incordatura</h3>
+      <p>Registra tensioni, corde usate e costo di ogni incordatura.</p>
+      <button class="primary" style="max-width:220px;margin:0 auto;" onclick="openJobForm()">Registra incordatura</button>
+    </div>`;
+    return;
+  }
+
+  main.innerHTML = statStrip + sorted.map(j=>{
+    const racket = db.rackets.find(r=>r.id===j.racketId);
+    const mainStr = db.strings.find(s=>s.id===j.mainStringId);
+    const crossStr = db.strings.find(s=>s.id===j.crossStringId) || mainStr;
+    const isHybrid = j.crossStringId && j.crossStringId !== j.mainStringId;
+    return `
+    <div class="card">
+      <div class="card-row">
+        <div>
+          <h3>${racket? esc(racket.name): "Racchetta eliminata"}</h3>
+          <div class="meta">${fmtDate(j.date)}</div>
+        </div>
+        <button class="iconbtn" onclick="openJobForm('${j.id}')">✎</button>
+      </div>
+      <div class="tags">
+        <span class="tag">${mainStr? esc(mainStr.brand+" "+(mainStr.model||"")) : "—"}${isHybrid? " (vert.)":""}</span>
+        ${isHybrid? `<span class="tag clay">${esc(crossStr.brand+" "+(crossStr.model||""))} (oriz.)</span>`:""}
+      </div>
+      <div class="tension-grid">
+        <div class="tension-box">
+          <div class="label">Tensione verticale</div>
+          <div class="val">${j.tensionV||"—"}<span> kg</span></div>
+        </div>
+        <div class="tension-box">
+          <div class="label">Tensione orizzontale</div>
+          <div class="val">${j.tensionH||"—"}<span> kg</span></div>
+        </div>
+      </div>
+      <div class="cost-row">
+        <span>${j.notes? esc(j.notes) : "Nessuna nota"}</span>
+        <span class="price">${euro(j.cost)}</span>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function openJobForm(id, presetRacketId){
+  const j = id ? db.jobs.find(x=>x.id===id) : null;
+  const racketOptions = db.rackets.map(r=>`<option value="${r.id}" ${ (j&&j.racketId===r.id) || (!j && presetRacketId===r.id) ?"selected":""}>${esc(r.name)}</option>`).join("");
+  const stringOptions = (selId)=> db.strings.map(s=>`<option value="${s.id}" ${selId===s.id?"selected":""}>${esc(s.brand+" "+(s.model||""))}</option>`).join("");
+  const hybrid = j ? (j.crossStringId && j.crossStringId !== j.mainStringId) : false;
+
+  openSheet(`
+    <div class="sheet-handle"></div>
+    <h2>${j? "Modifica incordatura":"Nuova incordatura"}</h2>
+    <div class="field">
+      <label>Racchetta</label>
+      <select id="f_jracket">${racketOptions}</select>
+    </div>
+    <div class="field"><label>Data</label><input id="f_jdate" type="date" value="${j? j.date : todayISO()}"></div>
+
+    <div class="toggle-row">
+      <button type="button" id="toggleMono" class="${!hybrid?'active':''}" onclick="setHybridMode(false)">Stessa corda</button>
+      <button type="button" id="toggleHybrid" class="${hybrid?'active':''}" onclick="setHybridMode(true)">Ibrido (main/cross)</button>
+    </div>
+
+    <div class="field">
+      <label id="lbl_main">Corda</label>
+      <select id="f_jmain">${stringOptions(j? j.mainStringId : null)}</select>
+    </div>
+    <div class="field" id="crossField" style="display:${hybrid? 'block':'none'}">
+      <label>Corda orizzontale (cross)</label>
+      <select id="f_jcross">${stringOptions(j? j.crossStringId : null)}</select>
+    </div>
+
+    <div class="field-row">
+      <div class="field"><label>Tensione verticale (kg)</label><input id="f_jtv" type="number" step="0.5" placeholder="24" value="${j? esc(j.tensionV||""):""}"></div>
+      <div class="field"><label>Tensione orizzontale (kg)</label><input id="f_jth" type="number" step="0.5" placeholder="23" value="${j? esc(j.tensionH||""):""}"></div>
+    </div>
+    <div class="field"><label>Costo totale (€)</label><input id="f_jcost" type="number" step="0.01" placeholder="25.00" value="${j? esc(j.cost||""):""}"></div>
+    <div class="field"><label>Note</label><textarea id="f_jnotes" placeholder="sensazioni in campo, rottura dopo N ore...">${j? esc(j.notes||""):""}</textarea></div>
+
+    <div class="btn-row">
+      ${j? `<button class="secondary" onclick="deleteJob('${j.id}')">Elimina</button>`:""}
+      <button class="primary" onclick="saveJob('${j? j.id:""}')">Salva</button>
+    </div>
+  `);
+}
+function setHybridMode(on){
+  document.getElementById("toggleMono").classList.toggle("active", !on);
+  document.getElementById("toggleHybrid").classList.toggle("active", on);
+  document.getElementById("crossField").style.display = on ? "block":"none";
+  document.getElementById("lbl_main").textContent = on ? "Corda verticale (main)" : "Corda";
+}
+function saveJob(id){
+  const hybridOn = document.getElementById("toggleHybrid").classList.contains("active");
+  const mainId = val("f_jmain");
+  const crossId = hybridOn ? val("f_jcross") : mainId;
+  const data = {
+    racketId: val("f_jracket"),
+    date: val("f_jdate") || todayISO(),
+    mainStringId: mainId,
+    crossStringId: crossId,
+    tensionV: val("f_jtv"),
+    tensionH: val("f_jth"),
+    cost: val("f_jcost"),
+    notes: val("f_jnotes"),
+  };
+  if(!data.racketId || !data.mainStringId){
+    alert("Seleziona racchetta e corda.");
+    return;
+  }
+  if(id){
+    Object.assign(db.jobs.find(x=>x.id===id), data);
+  } else {
+    data.id = uid();
+    db.jobs.push(data);
+  }
+  saveDB(); closeSheet(); render();
+}
+function deleteJob(id){
+  if(!confirm("Eliminare questa incordatura?")) return;
+  db.jobs = db.jobs.filter(x=>x.id!==id);
+  saveDB(); closeSheet(); render();
+}
+
+/* ---------- helpers ---------- */
+function val(id){ const el = document.getElementById(id); return el? el.value.trim() : ""; }
+function esc(s){
+  if(s===undefined||s===null) return "";
+  return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+render();
+
+/* ---------- service worker ---------- */
+if("serviceWorker" in navigator){
+  window.addEventListener("load", ()=>{
+    navigator.serviceWorker.register("sw.js").catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
