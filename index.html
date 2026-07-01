@@ -716,6 +716,7 @@ function renderJobs(){
     const mainStr = db.strings.find(s=>s.id===j.mainStringId);
     const crossStr = db.strings.find(s=>s.id===j.crossStringId) || mainStr;
     const isHybrid = j.crossStringId && j.crossStringId !== j.mainStringId;
+    const hoursTotal = (j.sessions||[]).reduce((s,x)=> s + (Number(x.hours)||0), 0);
     return `
     <div class="card">
       <div class="card-row">
@@ -740,11 +741,73 @@ function renderJobs(){
         </div>
       </div>
       <div class="cost-row">
+        <span>⏱ ${hoursTotal>0? hoursTotal.toFixed(1).replace(/\.0$/,"") + " h di gioco" : "Nessuna ora registrata"}</span>
+        <button class="iconbtn" style="color:var(--ball); font-size:13px; font-weight:600;" onclick="openSessionForm('${j.id}')">+ ore</button>
+      </div>
+      <div class="cost-row">
         <span>${j.notes? esc(j.notes) : "Nessuna nota"}</span>
         <span class="price">${euro(j.cost)}</span>
       </div>
     </div>`;
   }).join("");
+}
+
+/* ---------- play sessions (ore di gioco) ---------- */
+function openSessionForm(jobId){
+  const j = db.jobs.find(x=>x.id===jobId);
+  if(!j) return;
+  if(!j.sessions) j.sessions = [];
+  const sorted = [...j.sessions].sort((a,b)=>b.date.localeCompare(a.date));
+  const total = j.sessions.reduce((s,x)=> s + (Number(x.hours)||0), 0);
+
+  openSheet(`
+    <div class="sheet-handle"></div>
+    <h2>Registra ore di gioco</h2>
+    <div class="field"><label>Data sessione</label><input id="f_sessdate" type="date" value="${todayISO()}"></div>
+    <div class="field"><label>Ore giocate</label><input id="f_sesshours" type="number" step="0.25" placeholder="1.5" inputmode="decimal"></div>
+    <div class="field"><label>Nota (opzionale)</label><input id="f_sessnote" placeholder="es. partita, allenamento..."></div>
+    <div class="btn-row">
+      <button class="primary" style="width:100%" onclick="saveSession('${j.id}')">Salva ore</button>
+    </div>
+    ${j.sessions.length>0? `
+      <div style="margin-top:20px; padding-top:14px; border-top:1px solid var(--line);">
+        <div class="hint" style="margin-bottom:10px;">Totale finora: <strong style="color:var(--ball)">${total.toFixed(2).replace(/\.?0+$/,"")} h</strong> su questa incordatura</div>
+        ${sorted.map(s=>`
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:7px 0; font-size:13px;">
+            <span style="color:var(--muted)">${fmtDate(s.date)} ${s.note? "· "+esc(s.note):""}</span>
+            <span style="display:flex; align-items:center; gap:8px;">
+              <strong>${s.hours} h</strong>
+              <button class="iconbtn" style="font-size:14px;" onclick="deleteSession('${j.id}','${s.id}')">✕</button>
+            </span>
+          </div>
+        `).join("")}
+      </div>
+    `: ""}
+  `);
+}
+function saveSession(jobId){
+  const j = db.jobs.find(x=>x.id===jobId);
+  if(!j) return;
+  const hours = val("f_sesshours");
+  if(!hours || Number(hours)<=0){ alert("Inserisci un numero di ore valido."); return; }
+  if(!j.sessions) j.sessions = [];
+  j.sessions.push({
+    id: uid(),
+    date: val("f_sessdate") || todayISO(),
+    hours: hours,
+    note: val("f_sessnote"),
+  });
+  saveDB();
+  openSessionForm(jobId); // refresh sheet with updated history
+  render();
+}
+function deleteSession(jobId, sessionId){
+  const j = db.jobs.find(x=>x.id===jobId);
+  if(!j) return;
+  j.sessions = (j.sessions||[]).filter(s=>s.id!==sessionId);
+  saveDB();
+  openSessionForm(jobId);
+  render();
 }
 
 function openJobForm(id, presetRacketId){
